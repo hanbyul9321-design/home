@@ -16,6 +16,14 @@ export async function createSupabaseBackend(
   const { createBrowserClient } = await import('@supabase/ssr');
   const sb: SupabaseClient = createBrowserClient(cfg.url.replace(/\/$/, ''), cfg.anonKey);
 
+  /* 테이블 하나당 실시간 채널 하나 — 듣는 쪽이 여럿이어도 콜백만 모아 둔다 (v2.0 사용자 제보).
+     supabase-js는 같은 이름의 채널을 **재사용**하는데, 이미 subscribe()한 채널에 콜백을 또 붙이면
+     예외를 던진다("cannot add postgres_changes callbacks ... after subscribe()"). 테이블마다
+     채널을 새로 만드는 줄 알고 구독할 때마다 .on()을 부르고 있어서, 같은 목록을 보는 화면이
+     둘 이상이면(메인에 LATEST 위젯을 두 개 두면 roadview·gallery가 그렇다) 그 예외가 그대로
+     터져 **화면 전체가 죽었다** — 브라우저에는 「페이지를 불러올 수 없음」으로 보인다. */
+  const channels = new Map<string, { ch: ReturnType<typeof sb.channel>; subs: Set<() => void> }>();
+
   const toUser = async (u: { id: string; email?: string; user_metadata?: Record<string, unknown> } | null | undefined): Promise<BackendUser | null> => {
     if (!u) return null;
     const { data: prof } = await sb.from('profiles')
@@ -203,10 +211,27 @@ export async function createSupabaseBackend(
     },
 
     subscribe(coll, onChange) {
-      const ch = sb.channel(`ohome:${coll}`)
-        .on('postgres_changes', { event: '*', schema: 'public', table: coll }, () => onChange())
-        .subscribe();
-      return () => { void sb.removeChannel(ch); };
+      let entry = channels.get(coll);
+      if (!entry) {
+        const subs = new Set<() => void>();
+        const ch = sb.channel(`ohome:${coll}`)
+          .on('postgres_changes', { event: '*', schema: 'public', table: coll },
+            () => subs.forEach(f => f()))
+          .subscribe();
+        entry = { ch, subs };
+        channels.set(coll, entry);
+      }
+      entry.subs.add(onChange);
+      return () => {
+        const e = channels.get(coll);
+        if (!e) return;
+        e.subs.delete(onChange);
+        // 마지막 구독이 떠날 때만 채널을 닫는다 — 먼저 떠난 쪽이 닫으면 남은 화면이 실시간을 잃는다
+        if (e.subs.size === 0) {
+          channels.delete(coll);
+          void sb.removeChannel(e.ch);
+        }
+      };
     },
 
     async fetchSetting<T>(key: string) {
