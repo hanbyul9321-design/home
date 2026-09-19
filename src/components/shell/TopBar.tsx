@@ -150,7 +150,9 @@ export function TopBar() {
     <header className={`topbar${logoSrc ? ' has-logo-img' : ''}`}>
       {/* 로고 — 텍스트·서브타이틀·정렬은 환경설정 > 디자인 (5.2). 로고 이미지가 있으면 텍스트 대신
           이미지를 쓰고, 바 전체 가운데로 띄운다(세로 영역도 이미지에 맞춰 넓힌다 — v2.0 사용자 요청) */}
-      <div className={`brand${logoSrc ? ' brand-center' : ''}`} onClick={() => nav('/')}>
+      <div className={`brand${logoSrc ? ' brand-center' : ''}`} onClick={() => nav('/')}
+        role="link" tabIndex={0} aria-label="메인으로"
+        onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); nav('/'); } }}>
         {siteLoaded && (logoSrc
           // eslint-disable-next-line @next/next/no-img-element
           ? <img src={logoSrc} alt={site.title} className="brand-img" />
