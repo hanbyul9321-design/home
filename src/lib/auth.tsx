@@ -43,7 +43,7 @@ const SETUP_KEY = 'ohome.setup.v1';      // 설치 화면을 마쳤는지
 
 /** 현재 가입코드 — 관리자가 정한 값(서버 공유), 없으면 기본 WELCOME */
 export function inviteCode(): string {
-  return getSetting<string>(INVITE_KEY, 'WELCOME') || 'WELCOME';
+  return getSetting<string>(INVITE_KEY, 'WELCOME29') || 'WELCOME29';
 }
 export function setInviteCode(code: string) {
   setSetting(INVITE_KEY, code.trim());
