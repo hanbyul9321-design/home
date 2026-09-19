@@ -7,7 +7,7 @@ import { useAuth } from '@/lib/auth';
 import { boardEntries, useMenuSettings, buildMenu, canViewHref } from '@/lib/menuStore';
 import { sectionHref, MAIN_SEC, useSections, sectionMenuEntries } from '@/lib/sectionStore';
 import { useCustomLinks, linkEntries } from '@/lib/linkStore';
-import { useBoards } from '@/lib/boardStore';
+import { useBoards, useBoardSettings, galleryCatsOf } from '@/lib/boardStore';
 import { Modal } from '@/components/ui/Modal';
 import { KTextarea, KSelect, KStep, KCheck } from '@/components/ui/Kit';
 import { ColorField } from '@/components/ui/ColorField';
@@ -193,36 +193,57 @@ export function DiaryWidget() {
   );
 }
 
-/* ---------- LATEST (최신 그림 — 로드비 + 갤러리 통합 최신 3장, v1.9 사용자 피드백) ---------- */
-export function LatestWidget() {
+/* ---------- LATEST (최신 그림 — 로드비 + 갤러리 통합 최신 3장, v1.9 사용자 피드백)
+ * v2.0: 여러 개 추가 가능 — 위젯마다 갤러리 말머리를 하나 골라 그 말머리만 보여줄 수 있다
+ * (사용자 요청 — 갤러리 말머리를 2개로 나눠 쓰면서, 메인에 각각 따로 최신 3장을 보여주고 싶어함).
+ * 말머리를 안 고르면(기본) 예전처럼 로드뷰+갤러리 통합 */
+export function LatestWidget({ conf }: { conf: WidgetConf }) {
   const router = useRouter();
   const { user, isAdmin } = useAuth();
+  const { editOn, updateWidget } = useMainStore();
+  const [open, setOpen] = useState(false);
+  useEditEvent(conf.id, () => setOpen(true));
   const [roads] = useLocalList<RoadItem>('ohome.road.v1', ROAD_SEED);
   const [backups] = useLocalList<BackupPost>('ohome.backup.v1', BACKUP_SEED);
   /* 메뉴에서 비공개로 둔 곳은 빼고 모은다 (v2.0 사용자 발견) — 로드비와 갤러리를 함께 보여 주는
      위젯이라 **소스별로** 따진다. 한쪽만 비공개면 나머지는 그대로 나온다. */
   const [menuSet] = useMenuSettings();
+  const { st: boardSet } = useBoardSettings();
   const viewer = { loggedIn: !!user, isAdmin, id: user?.id };
   const seeRoad = canViewHref(menuSet, '/loadb', viewer);
   const seeGal = canViewHref(menuSet, '/gallery', viewer);
-  const latest = [
-    ...(seeRoad ? roads : []).filter(it => canViewHref(menuSet, sectionHref('roadview', it.secId ?? MAIN_SEC), viewer)).map(it => ({
-      id: `r-${it.id}`, date: it.date, ref: it.imgId ?? it.imgUrl, ph: it.ph,
-      href: '/loadb', tip: `로드비 · No.${String(it.no ?? 0).padStart(3, '0')}`,
-    })),
-    // 갤러리 — 전체공개 + 접기 없는 게시물의 대표(첫) 이미지
-    ...(seeGal ? backups : [])
-      .filter(p => canViewHref(menuSet, sectionHref('gallery', p.secId ?? MAIN_SEC), viewer))
-      .filter(p => p.visibility === 'public' && !p.fold).map(p => ({
-      id: `b-${p.id}`, date: p.date, ref: p.images[0], ph: p.phList[0] ?? 'cool',
-      href: `/gallery/${p.id}`, tip: `갤러리 · ${p.title}`,
-    })),
-  ].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 3);
+  const cat = (conf.settings.galleryCat as string) || '';   // 말머리 — 비우면 통합
+  const galCats = galleryCatsOf(boardSet, MAIN_SEC);
+  const galPosts = (seeGal ? backups : [])
+    .filter(p => canViewHref(menuSet, sectionHref('gallery', p.secId ?? MAIN_SEC), viewer))
+    .filter(p => p.visibility === 'public' && !p.fold);
+  const latest = cat
+    ? galPosts.filter(p => p.category === cat).map(p => ({
+        id: `b-${p.id}`, date: p.date, ref: p.images[0], ph: p.phList[0] ?? 'cool',
+        href: `/gallery/${p.id}`, tip: `갤러리 · ${p.title}`,
+      })).sort((a, b) => b.date.localeCompare(a.date)).slice(0, 3)
+    : [
+        ...(seeRoad ? roads : []).filter(it => canViewHref(menuSet, sectionHref('roadview', it.secId ?? MAIN_SEC), viewer)).map(it => ({
+          id: `r-${it.id}`, date: it.date, ref: it.imgId ?? it.imgUrl, ph: it.ph,
+          href: '/loadb', tip: `로드비 · No.${String(it.no ?? 0).padStart(3, '0')}`,
+        })),
+        ...galPosts.map(p => ({
+          id: `b-${p.id}`, date: p.date, ref: p.images[0], ph: p.phList[0] ?? 'cool',
+          href: `/gallery/${p.id}`, tip: `갤러리 · ${p.title}`,
+        })),
+      ].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 3);
   const phFallback = ['cool', 'warm', 'red'];
-  if (!seeRoad && !seeGal) return null;   // 둘 다 비공개면 위젯 자체를 띄우지 않는다 (v2.0)
+  // 통합 모드는 둘 다 비공개면, 말머리 모드는 갤러리 자체가 비공개면 위젯을 띄우지 않는다 (v2.0)
+  if (cat ? !seeGal : (!seeRoad && !seeGal)) return null;
   return (
     <div className="panel widget" style={{ margin: 0 }}>
-      <h4>LATEST <span className="more" onClick={() => router.push('/gallery')}>더보기 ›</span></h4>
+      <h4>
+        <span>LATEST{cat && <small style={{ marginLeft: 4, fontWeight: 400, color: 'var(--faint)' }}>· {cat}</small>}</span>
+        <span style={{ display: 'flex', gap: 8 }}>
+          {isAdmin && <span className="more" onClick={() => setOpen(true)}>설정 ›</span>}
+          <span className="more" onClick={() => router.push('/gallery')}>더보기 ›</span>
+        </span>
+      </h4>
       <div className="latest-grid">
         {[0, 1, 2].map(i => {
           const it = latest[i];
@@ -234,6 +255,15 @@ export function LatestWidget() {
           );
         })}
       </div>
+      <Modal open={open} onClose={() => setOpen(false)} small title="LATEST 위젯"
+        desc="갤러리 말머리를 고르면 그 말머리 글만 보여줍니다 — 비우면 로드뷰+갤러리 최신을 함께 보여줍니다"
+        actions={<button className="btn btn-dark" onClick={() => setOpen(false)}>확인</button>}>
+        <KSelect
+          value={cat}
+          options={[{ value: '', label: '전체 (로드뷰+갤러리)' }, ...galCats.map(c => ({ value: c.label, label: c.label }))]}
+          onChange={v => updateWidget(conf.id, { settings: { ...conf.settings, galleryCat: v } }, { persist: true })}
+        />
+      </Modal>
     </div>
   );
 }
@@ -658,7 +688,7 @@ export function renderWidget(conf: WidgetConf) {
     case 'menu': return <MenuListWidget />;
     case 'memo': return <MemoWidget conf={conf} />;
     case 'diary': return <DiaryWidget />;
-    case 'latest': return <LatestWidget />;
+    case 'latest': return <LatestWidget conf={conf} />;
     case 'dday': return <DdayWidget conf={conf} />;
     case 'todo': return <TodoWidget conf={conf} />;
     case 'upcoming': return <UpcomingWidget />;
