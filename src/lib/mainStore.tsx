@@ -231,6 +231,8 @@ export function MainStoreProvider({ children }: { children: React.ReactNode }) {
       const w: WidgetConf = {
         id, type, col, enabled: true, tx: 0, ty: 0,
         ax: colX[col], ay: maxY,
+        // 그림 3장이 들어가는 위젯은 크기를 안 주면 좁게 생겨 내용이 잘린다 (v2.0 — 기본 LATEST와 같은 크기로)
+        ...(type === 'latest' ? { w: 300, h: 150 } : {}),
         settings: type === 'freetext' ? { text: '자유 텍스트' } : {},
       };
       return { ...s, widgets: [...s.widgets, w], mobileOrder: [...s.mobileOrder, id] };

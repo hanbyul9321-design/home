@@ -10,8 +10,11 @@ import { KRadio } from '@/components/ui/Kit';
 import { useToast } from '@/components/ui/Toast';
 
 const ADDABLE: WidgetType[] = ['banner', 'memo', 'dday', 'todo', 'upcoming', 'freetext', 'deco', 'diary', 'latest', 'apply'];   // banner: 여러 개 추가 (v2.0 사용자 요청)
-/** 내용 설정 모달이 있는 위젯 — 우클릭 「설정」 노출 대상 (v1.9) */
-const EDITABLE: WidgetType[] = ['banner', 'memo', 'dday', 'todo', 'freetext', 'deco', 'apply'];
+/** 내용 설정 모달이 있는 위젯 — 우클릭 「설정」 노출 대상 (v1.9)
+ *  편집모드에서는 WidgetFrame이 위젯 안 클릭을 전부 막으므로(드래그 대상), 설정 모달로 가는 길은
+ *  이 목록을 통한 우클릭뿐이다 — 설정이 있는 위젯을 여기 빠뜨리면 편집모드에서 설정을 못 연다.
+ *  latest: v2.0 — 갤러리 말머리 선택 */
+const EDITABLE: WidgetType[] = ['banner', 'memo', 'dday', 'todo', 'freetext', 'deco', 'apply', 'latest'];
 
 export default function MainPage() {
   const { state, editOn, gridOn, updateWidget, addWidget, removeWidget } = useMainStore();
