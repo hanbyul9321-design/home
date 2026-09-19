@@ -78,6 +78,7 @@ export default function MainPage() {
 
   const frame = (w: WidgetConf, className?: string) => (
     <WidgetFrame key={w.id} conf={w} mobileOrder={mOrder(w.id)} className={className}
+      onDel={id => { const me = enabled.find(v => v.id === id); if (me) setDelAsk(me); }}
       onCtx={(id, x, y) => {
         // 우클릭 시 z 기본값 부여 (겹침 조정 대상화)
         if (state.widgets.find(v => v.id === id)?.z == null) {

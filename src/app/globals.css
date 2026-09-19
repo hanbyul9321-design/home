@@ -934,7 +934,14 @@ body.drag-rs, body.drag-rs *{cursor:var(--cur-rs-nwse,var(--cur-drag,nwse-resize
 .wgt .rr{display:none;position:absolute;left:5px;top:5px;width:15px;height:15px;border-radius:50%;background:var(--accent);cursor:var(--cur-drag,grab) !important;z-index:6;box-shadow:0 2px 6px rgba(0,0,0,.35)}
 .wgt .rr::after{content:"";position:absolute;inset:3.5px;border:2px solid #fff;border-radius:50%;border-left-color:transparent}
 body.edit-on .page-main-wrap .wgt .rr{display:block}
-/* (v1.9) 위젯 삭제는 편집모드 우클릭 메뉴로 이동 — 상시 ✕ 버튼 제거 */
+/* 삭제 핸들 (v2.0 사용자 요청) — 오른쪽 위 ✕.
+   v1.9에서 「상시」 ✕ 버튼을 없애고 우클릭 메뉴로 옮겼는데, 그 뒤로 삭제 방법을 못 찾는다는
+   문의가 왔다. 크기·기울기 핸들과 같이 **편집모드에서만** 보이게 되살린다(상시 노출 아님). */
+.wgt .rd{display:none;position:absolute;right:5px;top:5px;width:15px;height:15px;border-radius:50%;background:var(--accent);cursor:var(--cur-pointer,pointer) !important;z-index:6;box-shadow:0 2px 6px rgba(0,0,0,.35)}
+.wgt .rd::before,.wgt .rd::after{content:"";position:absolute;left:3px;top:6.5px;width:9px;height:2px;background:#fff;border-radius:1px}
+.wgt .rd::before{transform:rotate(45deg)}
+.wgt .rd::after{transform:rotate(-45deg)}
+body.edit-on .page-main-wrap .wgt .rd{display:block}
 .add-wgt{display:none;width:100%;padding:20px;border:2px dashed rgba(255,255,255,.3);border-radius:var(--radius);color:#aab0ba;font-size:calc(12.5px*var(--fs,1));transition:.15s;margin-top:14px}
 .add-wgt:hover{border-color:rgba(255,255,255,.55);color:#fff}
 body.edit-on .add-wgt{display:block}
