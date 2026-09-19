@@ -326,7 +326,7 @@ function DesignPane() {
 
       {/* 로고 — 텍스트/서브타이틀/정렬/글씨색 (5.2) */}
       <div className="set-row" style={{ flexWrap: 'wrap' }}>
-        <div className="l"><b>로고</b><small>상단바 로고 텍스트·아랫줄 서브타이틀·정렬</small></div>
+        <div className="l"><b>로고</b><small>상단바 로고 텍스트·아랫줄 서브타이틀·정렬 — 이미지를 올리면 텍스트 대신 그 이미지가 뜸</small></div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', justifyContent: 'flex-end', flex: 1 }}>
           <LogoControls />
           {/* 글씨색은 줄 오른쪽 끝으로 (v1.9 사용자 요청) */}
@@ -1418,9 +1418,38 @@ function FaviconControl() {
 function LogoControls() {
   // 드래프트로만 반영 (v1.9) — 미리보기 즉시, 저장은 디자인 탭 SAVE에서
   const { site, set } = useSiteDraft();
+  const toast = useToast();
+  const logoUrl = useBlobUrl(site.logoImage);
   return (
     <>
-      {/* 로고 문구도 드래프트를 거쳐 되돌아오므로 한글 조합에 안전한 인풋으로 */}
+      {/* 로고 이미지 — 넣으면 아래 텍스트 로고 대신 이 이미지가 상단바에 뜬다 */}
+      <span style={{
+        width: 35, height: 35, borderRadius: 'var(--radius-s)', border: '1px solid var(--line)',
+        background: 'var(--panel)', display: 'grid', placeItems: 'center', overflow: 'hidden', flexShrink: 0,
+      }}>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        {logoUrl ? <img src={logoUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+          : <span style={{ fontSize: 10, color: 'var(--faint)' }}>없음</span>}
+      </span>
+      <input id="siteLogoImage" type="file" accept="image/png,image/svg+xml,image/webp,image/jpeg,image/gif"
+        style={{ display: 'none' }}
+        onChange={async e => {
+          const f = e.target.files?.[0];
+          e.target.value = '';
+          if (!f) return;
+          try { set({ logoImage: await putBlob(f) }); } catch (err) {
+            toast(`로고 이미지를 저장소에 올리지 못했습니다 — ${err instanceof Error ? err.message : String(err)}`);
+          }
+        }} />
+      <button className="btn btn-ghost" style={{ height: 35, padding: '0 14px', fontSize: 11 }}
+        onClick={() => document.getElementById('siteLogoImage')?.click()}>
+        {site.logoImage ? 'CHANGE' : 'UPLOAD'}
+      </button>
+      {site.logoImage && (
+        <button className="btn btn-ghost" style={{ height: 35, padding: '0 14px', fontSize: 11 }}
+          onClick={() => set({ logoImage: undefined })}>REMOVE</button>
+      )}
+      {/* 로고 문구도 드래프트를 거쳐 되돌아오므로 한글 조합에 안전한 인풋으로 — 이미지가 있으면 안 쓰임 */}
       <LiveInput value={site.title} onValue={v => set({ title: v })}
         style={{ width: 130, height: 35, boxSizing: 'border-box' }} />
       <LiveInput value={site.subtitle} onValue={v => set({ subtitle: v })}
