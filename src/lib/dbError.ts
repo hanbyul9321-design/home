@@ -1,6 +1,30 @@
 // 서버가 돌려준 오류를 사람이 할 수 있는 일로 바꿔 준다 (v2.0)
 //  — 원문만 보여 주면 무엇을 해야 할지 알 수 없고, 감추면 원인을 못 찾는다.
 
+/**
+ * 던져진 값에서 읽을 수 있는 메시지 뽑기 (v2.0 사용자 제보 — 「저장하지 못했습니다 — [object Object]」).
+ *
+ * `String(err)`은 Error가 아닌 객체에 대해 "[object Object]"를 내놓는다. Supabase Storage·Auth나
+ * fetch 실패는 Error가 아닌 **평범한 객체**를 돌려줄 때가 있어서, 정작 원인을 적어 둔 message·hint가
+ * 통째로 가려졌다. 아는 칸(message·hint·details·code)을 먼저 찾고, 그래도 없으면 JSON으로 보여 준다.
+ */
+export function errText(err: unknown): string {
+  if (err instanceof Error && err.message) {
+    // PostgrestError는 hint에 해결 방법(실행할 SQL 등)이 담겨 온다 — 있으면 함께 보여 준다
+    const hint = (err as { hint?: unknown }).hint;
+    return typeof hint === 'string' && hint ? `${err.message} (${hint})` : err.message;
+  }
+  if (err && typeof err === 'object') {
+    const o = err as Record<string, unknown>;
+    const parts = ['message', 'error_description', 'error', 'hint', 'details', 'code']
+      .map(k => (typeof o[k] === 'string' ? (o[k] as string) : ''))
+      .filter(Boolean);
+    if (parts.length) return parts.join(' · ');
+    try { return JSON.stringify(err); } catch { /* 순환 참조 등 */ }
+  }
+  return String(err);
+}
+
 /** 겪어 본 오류는 원인과 해결 방법으로 바꿔 준다 — 원문만으로는 무엇을 해야 할지 모른다 */
 export function explainDbError(msg: string): string {
   const m = msg.toLowerCase();

@@ -37,6 +37,7 @@ import { useCursorSettings, CursorState, CURSOR_STATE_LABEL } from '@/lib/cursor
 import { RelQuestionSet, RELQ_SEED, RELQ_KEY, CP_LABEL } from '@/lib/relqStore';
 import { SymbolInput } from '@/components/ui/SymbolInput';
 import { allBlobs, putBlobAs, useBlobUrl, getBlob } from '@/lib/blobStore';
+import { errText } from '@/lib/dbError';
 import { parseAni } from '@/lib/aniCursor';
 import { fileDrop } from '@/lib/dnd';
 import { Character, CHAR_SEED, Relation, REL_SEED } from '@/lib/charStore';
@@ -1400,7 +1401,7 @@ function FaviconControl() {
           if (!f) return;
           // 올리기가 막히면 아무 말 없이 끝나지 않게 (v2.0 — 프로필 사진에서 겪은 것과 같은 이유)
           try { set({ favicon: await putBlob(f) }); } catch (err) {
-            toast(`아이콘을 저장소에 올리지 못했습니다 — ${err instanceof Error ? err.message : String(err)}`);
+            toast(`아이콘을 저장소에 올리지 못했습니다 — ${errText(err)}`);
           }
         }} />
       <button className="btn btn-ghost" style={{ height: 35, padding: '0 14px', fontSize: 11 }}
@@ -1438,7 +1439,7 @@ function LogoControls() {
           e.target.value = '';
           if (!f) return;
           try { set({ logoImage: await putBlob(f) }); } catch (err) {
-            toast(`로고 이미지를 저장소에 올리지 못했습니다 — ${err instanceof Error ? err.message : String(err)}`);
+            toast(`로고 이미지를 저장소에 올리지 못했습니다 — ${errText(err)}`);
           }
         }} />
       <button className="btn btn-ghost" style={{ height: 35, padding: '0 14px', fontSize: 11 }}

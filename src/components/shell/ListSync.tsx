@@ -23,6 +23,20 @@ const LABEL: Record<string, string> = {
   trpg_logs: 'TRPG 로그',
   trpg_log_bodies: 'TRPG 로그 본문',
   applicants: '커미션 신청',
+  // 빠져 있던 것들 — 이름이 없으면 「gallery을(를) 저장하지 못했습니다」처럼 영문 테이블명이 그대로 나온다
+  gallery: '갤러리',
+  diary: '다이어리',
+  memos: '메모',
+  commissions: '커미션',
+  threads: '감상타래',
+  dotori: '도토리',
+  playlog: '플레이기록',
+  trpg_chars: 'TRPG 캐릭터',
+  rp_rooms: '역극 방',
+  rp_messages: '역극 발화',
+  qa_answers: '자관 답변',
+  moods: '무드',
+  notifications: '알림',
 };
 
 export function ListSync() {
