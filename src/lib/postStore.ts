@@ -6,6 +6,7 @@ import type { PostMode } from './sanitize';
 import { isServerMode } from './supabase';
 import { TABLE_OF, fetchList, syncList, subscribeTable } from './db';
 import { currentUserId } from './currentUser';
+import { errText } from './dbError';
 
 /** 목록 저장 실패 알림 (v2.0) — 조용히 되돌리면 "쓴 게 바로 지워진다"로만 보여 원인을 알 수 없다.
  *  ListSync가 받아 화면에 띄운다 (설정 저장 실패 알림과 같은 방식) */
@@ -159,7 +160,7 @@ export function useLocalList<T extends { id?: string }>(key: string, seed: T[]):
           console.error('[ohome] 저장 실패', err);
           try {
             window.dispatchEvent(new CustomEvent(LIST_ERR_EVT, {
-              detail: { table, message: err instanceof Error ? err.message : String(err) },
+              detail: { table, message: errText(err) },
             }));
           } catch { /* 무시 */ }
           reqId.current = id;   // 이 복구 fetch는 유효한 최신 요청으로 인정

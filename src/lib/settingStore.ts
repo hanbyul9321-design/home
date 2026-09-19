@@ -9,6 +9,7 @@
 // primeSettings()로 캐시를 채운다. 이후 읽기는 전부 동기(캐시)라 기존 코드 모양이 유지된다.
 // 쓰기는 캐시 → localStorage(첫 페인트용 사본) → DB 순으로 나간다.
 import { backend, isServerMode } from './backend';
+import { errText } from './dbError';
 
 const cache = new Map<string, unknown>();
 let primed = false;
@@ -117,7 +118,7 @@ export function setSetting(key: string, value: unknown): void {
       console.error('[ohome] 설정 저장 실패', key, err);
       try {
         window.dispatchEvent(new CustomEvent(ERR_EVT, {
-          detail: { key, message: (err as { message?: string })?.message ?? '' },
+          detail: { key, message: errText(err) },
         }));
       } catch { /* 무시 */ }
     });
