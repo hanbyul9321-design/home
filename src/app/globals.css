@@ -83,7 +83,12 @@ a{color:inherit;text-decoration:none}
 .brand small.al-left{text-align:left}.brand small.al-center{text-align:center}.brand small.al-right{text-align:right}
 /* 로고 이미지 모드 — 바 전체 가운데로 띄운다. topbar가 이미 sticky(포지션 컨텍스트)라
    absolute 기준으로 gnb·user-wrap의 폭과 무관하게 항상 정중앙에 온다 (v2.0 사용자 요청) */
-.brand.brand-center{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%)}
+/* 가운데 로고는 메뉴바(.gnb) 위에 올려야 한다 (v2.0 사용자 제보 — 「로고를 눌러도 메인으로 안 감」).
+   .gnb가 position:relative라 DOM 순서상 나중인 쪽이 위로 깔리는데, gnb는 flex:1로 바 가운데까지
+   덮기 때문에 **로고가 보이는 자리의 클릭을 메뉴바가 가로챘다.** 보이는 대로 눌리게 z-index를 올리고,
+   이미지 밖(빈 여백)은 클릭을 통과시켜 뒤의 메뉴 버튼을 막지 않는다. */
+.brand.brand-center{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:3;pointer-events:none}
+.brand.brand-center .brand-img{pointer-events:auto}
 .brand-img{display:block;height:120px;max-width:320px;width:auto;object-fit:contain}
 /* 이미지 로고를 쓰면 세로 영역도 그만큼 넓힌다 — 기본(텍스트 로고) 높이는 그대로 둠 */
 .topbar.has-logo-img{height:136px}
