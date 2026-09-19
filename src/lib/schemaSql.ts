@@ -1,6 +1,10 @@
 ﻿'use client';
-// 설치 화면에서 복사해 쓰는 스키마 SQL — 원본: supabase/schema.sql
-// (원본을 고치면 이 파일도 함께 갱신)
+// 설치 화면에서 복사해 쓰는 스키마 SQL — **이 파일이 원본이다.**
+//
+// supabase/schema.sql은 여기서 만들어 내는 사본이므로 손으로 고치지 말고
+// `npm run schema` 를 실행해 다시 만든다. 예전에는 두 벌을 손으로 맞추다 어긋나서,
+// 저장소의 schema.sql을 실행한 사람은 editor_ids 컬럼과 comments·notifications 테이블이
+// 없는 DB를 갖게 됐고 **글 저장이 전부 실패**했다 (PGRST204, v2.0 사용자 제보).
 
 export const SCHEMA_SQL = `-- ============================================================
 -- O.HOME 서버 스키마 (공개 홈용)

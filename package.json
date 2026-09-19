@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "pack": "node scripts/pack.mjs"
+    "pack": "node scripts/pack.mjs",
+    "schema": "node scripts/sync-schema.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.4",
