@@ -28,10 +28,13 @@ export function errText(err: unknown): string {
 /** 겪어 본 오류는 원인과 해결 방법으로 바꿔 준다 — 원문만으로는 무엇을 해야 할지 모른다 */
 export function explainDbError(msg: string): string {
   const m = msg.toLowerCase();
-  // PostgREST가 테이블·컬럼 목록을 캐시해 둬서, SQL로 컬럼을 추가해도 한동안 모른다
+  /* PostgREST가 테이블·컬럼 목록을 캐시해 둬서, SQL로 컬럼을 추가해도 한동안 모른다.
+     **원문을 함께 남긴다** (v2.0 사용자 제보 — 캐시를 갱신해도 같은 안내만 반복됐다):
+     원문에 「'editor_ids' 컬럼을 찾을 수 없다」처럼 **무엇이 없는지**가 적혀 있는데
+     안내 문구로 통째로 갈아치우는 바람에, 캐시 문제인지 컬럼이 진짜 없는 것인지 구분할 수 없었다. */
   if (m.includes('schema cache') || m.includes('pgrst204')) {
-    return 'DB 스키마 캐시가 옛 상태입니다 — Supabase > SQL Editor에서 다음 한 줄을 실행해 주세요: '
-      + "notify pgrst, 'reload schema';  (설치 SQL을 다시 실행해도 됩니다)";
+    return `${msg} → 설치 SQL(환경설정 > 보안 규칙)을 최신 것으로 다시 실행해 주세요. `
+      + "이미 실행했다면 Supabase > SQL Editor에서 notify pgrst, 'reload schema'; 한 줄을 실행해 캐시를 갱신해 주세요";
   }
   // 행 수준 보안에 막힌 경우 — 규칙을 안 붙였거나 로그인이 안 돼 있다
   if (m.includes('row-level security') || m.includes('violates row-level') || m.includes('permission denied')) {
