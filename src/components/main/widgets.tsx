@@ -9,7 +9,8 @@ import { sectionHref, MAIN_SEC, useSections, sectionMenuEntries } from '@/lib/se
 import { useCustomLinks, linkEntries } from '@/lib/linkStore';
 import { useBoards, useBoardSettings, galleryCatsOf } from '@/lib/boardStore';
 import { Modal } from '@/components/ui/Modal';
-import { KTextarea, KSelect, KStep, KCheck, LiveInput } from '@/components/ui/Kit';
+import { KTextarea, KSelect, KStep, KCheck, LiveInput, Pager } from '@/components/ui/Kit';
+import { DragList } from '@/components/ui/DragList';
 import { ColorField } from '@/components/ui/ColorField';
 import { useFonts } from '@/lib/fontStore';
 import { BannerEditor, BannerSlide, DEMO_SLIDES, DdayEditor, DecoEditor, TodoEditor, TodoSetItem } from '@/components/main/widgetEditors';
@@ -214,7 +215,11 @@ export function LatestWidget({ conf }: { conf: WidgetConf }) {
   const seeGal = canViewHref(menuSet, '/gallery', viewer);
   const cat = (conf.settings.galleryCat as string) || '';   // 말머리 — 비우면 통합
   const title = ((conf.settings.title as string) ?? '').trim() || 'LATEST';   // 제목 직접 입력 (v2.0)
-  const picks = Array.isArray(conf.settings.pickIds) ? (conf.settings.pickIds as string[]) : [];
+  /* 직접 고르기로 둔 위젯은 고른 글만 내보낸다 — 고른 게 없으면 빈 칸으로 둔다(자동으로 되돌아가지 않음).
+     예전 저장분에는 mode가 없으므로 고른 글이 있으면 직접 고르기로 본다 (v2.0) */
+  const pickMode = (conf.settings.mode as string) === 'pick'
+    || (conf.settings.mode == null && Array.isArray(conf.settings.pickIds) && (conf.settings.pickIds as string[]).length > 0);
+  const picks = pickMode && Array.isArray(conf.settings.pickIds) ? (conf.settings.pickIds as string[]) : [];
   const galCats = galleryCatsOf(boardSet, MAIN_SEC);
   const galPosts = (seeGal ? backups : [])
     .filter(p => canViewHref(menuSet, sectionHref('gallery', p.secId ?? MAIN_SEC), viewer))
@@ -225,7 +230,7 @@ export function LatestWidget({ conf }: { conf: WidgetConf }) {
   });
   /* 직접 고른 글이 있으면 그것만, 고른 순서대로 (v2.0 사용자 요청 — 「게시물을 내가 원하는 걸로」).
      고른 뒤 그 글이 지워지거나 비공개가 되면 그 칸은 비워 둔다 — 엉뚱한 글로 슬쩍 바뀌지 않게. */
-  const latest = picks.length
+  const latest = pickMode
     ? picks.map(id => galPosts.find(p => p.id === id)).filter((p): p is BackupPost => !!p).map(asCard).slice(0, 3)
     : cat
     ? galPosts.filter(p => p.category === cat).map(asCard)
@@ -239,7 +244,7 @@ export function LatestWidget({ conf }: { conf: WidgetConf }) {
       ].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 3);
   const phFallback = ['cool', 'warm', 'red'];
   // 통합 모드는 둘 다 비공개면, 갤러리만 보는 모드(말머리·직접 고르기)는 갤러리가 비공개면 숨긴다 (v2.0)
-  if (cat || picks.length ? !seeGal : (!seeRoad && !seeGal)) return null;
+  if (cat || pickMode ? !seeGal : (!seeRoad && !seeGal)) return null;
   return (
     <div className="panel widget" style={{ margin: 0 }}>
       <h4>
@@ -270,7 +275,9 @@ export function LatestWidget({ conf }: { conf: WidgetConf }) {
   );
 }
 
-/** LATEST 위젯 설정 — 제목 · 자동(최신순)/직접 고르기 (v2.0 사용자 요청) */
+/** LATEST 위젯 설정 — 제목 · 자동(최신순)/직접 고르기 (v2.0 사용자 요청).
+ *  직접 고르기일 때만 게시물 목록을 연다 — 자동일 때는 쓰지 않는 목록이라 혼란만 준다.
+ *  글이 쌓이면 목록에서 찾기가 어려우므로 검색·페이지를 함께 둔다 (v2.0 사용자 요청 — 「못찾겠음」). */
 function LatestSettings({ conf, posts, cats, onPatch }: {
   conf: WidgetConf;
   posts: BackupPost[];
@@ -280,13 +287,31 @@ function LatestSettings({ conf, posts, cats, onPatch }: {
   const picks = Array.isArray(conf.settings.pickIds) ? (conf.settings.pickIds as string[]) : [];
   const cat = (conf.settings.galleryCat as string) || '';
   const title = (conf.settings.title as string) ?? '';
+  // 예전 저장분에는 mode가 없다 — 고른 글이 있으면 직접 고르기로 본다 (v2.0)
+  const mode = (conf.settings.mode as string) ?? (picks.length ? 'pick' : 'auto');
   const MAX = 3;
-  // 고른 순서를 유지한다 — 위젯에 그 순서대로 나가므로 (앞에서부터 3칸)
+  const [q, setQ] = useState('');
+  const [page, setPage] = useState(1);
+  const PER = 6;
+
+  const byId = (id: string) => posts.find(p => p.id === id);
   const toggle = (id: string) => {
-    const next = picks.includes(id) ? picks.filter(x => x !== id) : [...picks, id].slice(-MAX);
+    const next = picks.includes(id)
+      ? picks.filter(x => x !== id)
+      : (picks.length >= MAX ? picks : [...picks, id]);
     onPatch({ pickIds: next });
   };
-  const recent = [...posts].sort((a, b) => b.date.localeCompare(a.date));
+
+  const found = [...posts]
+    .sort((a, b) => b.date.localeCompare(a.date))
+    .filter(p => !q
+      || p.title.toLowerCase().includes(q.toLowerCase())
+      || p.category.toLowerCase().includes(q.toLowerCase())
+      || (p.tags ?? []).some(t => t.toLowerCase().includes(q.toLowerCase())));
+  const pages = Math.max(1, Math.ceil(found.length / PER));
+  const cur = Math.min(page, pages);            // 검색으로 줄어들면 마지막 장으로 당긴다
+  const shown = found.slice((cur - 1) * PER, (cur - 1) * PER + PER);
+
   return (
     <div style={{ display: 'grid', gap: 14 }}>
       <label style={{ display: 'grid', gap: 5 }}>
@@ -298,13 +323,13 @@ function LatestSettings({ conf, posts, cats, onPatch }: {
       <div style={{ display: 'grid', gap: 5 }}>
         <span className="cp-lb">보여줄 게시물</span>
         <KSelect
-          value={picks.length ? 'pick' : 'auto'}
+          value={mode}
           options={[{ value: 'auto', label: '자동 — 최신순' }, { value: 'pick', label: '직접 고르기' }]}
-          onChange={v => onPatch(v === 'auto' ? { pickIds: [] } : { pickIds: picks.length ? picks : [] })}
+          onChange={v => onPatch({ mode: v })}
         />
       </div>
 
-      {picks.length === 0 ? (
+      {mode === 'auto' ? (
         <div style={{ display: 'grid', gap: 5 }}>
           <span className="cp-lb">말머리</span>
           <KSelect
@@ -312,42 +337,73 @@ function LatestSettings({ conf, posts, cats, onPatch }: {
             options={[{ value: '', label: '전체 (로드뷰+갤러리)' }, ...cats.map(c => ({ value: c.label, label: c.label }))]}
             onChange={v => onPatch({ galleryCat: v })}
           />
-          <small style={{ color: 'var(--faint)', fontSize: 10.5 }}>
-            아래에서 게시물을 고르면 자동 대신 고른 것만 나옵니다
-          </small>
         </div>
       ) : (
-        <small style={{ color: 'var(--faint)', fontSize: 10.5 }}>
-          고른 순서대로 {MAX}칸까지 — 전부 해제하면 다시 최신순으로 돌아갑니다
-        </small>
-      )}
+        <>
+          <div style={{ display: 'grid', gap: 5 }}>
+            <span className="cp-lb">고른 게시물 ({picks.length}/{MAX}) — ⠿ 드래그로 순서</span>
+            {picks.length === 0 ? (
+              <p className="hint" style={{ margin: 0 }}>아직 고른 게시물이 없습니다 — 아래에서 고르세요</p>
+            ) : (
+              <DragList items={picks} keyOf={id => id}
+                onReorder={next => onPatch({ pickIds: next })}
+                render={id => {
+                  const p = byId(id);
+                  return (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '5px 8px', fontSize: 11.5 }}>
+                      <span className="drag-h">⠿</span>
+                      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {p ? (p.title || '(제목 없음)') : '(삭제된 게시물)'}
+                      </span>
+                      <button className="btn btn-ghost" style={{ marginLeft: 'auto', padding: '2px 8px', fontSize: 10.5 }}
+                        onClick={() => onPatch({ pickIds: picks.filter(x => x !== id) })}>빼기</button>
+                    </div>
+                  );
+                }} />
+            )}
+          </div>
 
-      <div style={{ display: 'grid', gap: 5 }}>
-        <span className="cp-lb">갤러리 게시물 ({picks.length}/{MAX} 선택)</span>
-        <div style={{ maxHeight: 220, overflowY: 'auto', display: 'grid', gap: 2, border: '1px solid var(--line)', borderRadius: 'var(--radius-s)', padding: 6 }}>
-          {recent.length === 0 && <p className="hint" style={{ margin: 4 }}>고를 수 있는 갤러리 글이 없습니다</p>}
-          {recent.map(p => {
-            const at = picks.indexOf(p.id);
-            return (
-              <button key={p.id} className="btn btn-ghost"
-                style={{
-                  display: 'flex', alignItems: 'center', gap: 8, justifyContent: 'flex-start',
-                  padding: '5px 8px', fontSize: 11.5, textAlign: 'left',
-                  background: at >= 0 ? 'var(--panel)' : undefined,
-                }}
-                onClick={() => toggle(p.id)}>
-                <span style={{
-                  width: 17, height: 17, flexShrink: 0, borderRadius: 4, fontSize: 9.5,
-                  border: '1px solid var(--line)', display: 'grid', placeItems: 'center',
-                  background: at >= 0 ? 'var(--accent)' : 'transparent', color: at >= 0 ? '#fff' : 'transparent',
-                }}>{at >= 0 ? at + 1 : ''}</span>
-                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.title || '(제목 없음)'}</span>
-                <small style={{ marginLeft: 'auto', color: 'var(--faint)', flexShrink: 0 }}>{p.category}</small>
-              </button>
-            );
-          })}
-        </div>
-      </div>
+          <div style={{ display: 'grid', gap: 5 }}>
+            <span className="cp-lb">게시물 찾기</span>
+            <LiveInput value={q} onValue={v => { setQ(v); setPage(1); }}
+              placeholder="제목 · 말머리 · 태그로 검색" style={{ height: 32 }} />
+            <div style={{ display: 'grid', gap: 2, border: '1px solid var(--line)', borderRadius: 'var(--radius-s)', padding: 6, minHeight: 60 }}>
+              {shown.length === 0 && (
+                <p className="hint" style={{ margin: 4 }}>
+                  {posts.length === 0 ? '고를 수 있는 갤러리 글이 없습니다' : '검색 결과가 없습니다'}
+                </p>
+              )}
+              {shown.map(p => {
+                const at = picks.indexOf(p.id);
+                const full = at < 0 && picks.length >= MAX;
+                return (
+                  <button key={p.id} className="btn btn-ghost" disabled={full}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 8, justifyContent: 'flex-start',
+                      padding: '5px 8px', fontSize: 11.5, textAlign: 'left',
+                      background: at >= 0 ? 'var(--panel)' : undefined, opacity: full ? .45 : 1,
+                    }}
+                    onClick={() => toggle(p.id)}>
+                    <span style={{
+                      width: 17, height: 17, flexShrink: 0, borderRadius: 4, fontSize: 9.5,
+                      border: '1px solid var(--line)', display: 'grid', placeItems: 'center',
+                      background: at >= 0 ? 'var(--accent)' : 'transparent', color: at >= 0 ? '#fff' : 'transparent',
+                    }}>{at >= 0 ? at + 1 : ''}</span>
+                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.title || '(제목 없음)'}</span>
+                    <small style={{ marginLeft: 'auto', color: 'var(--faint)', flexShrink: 0 }}>{p.category}</small>
+                  </button>
+                );
+              })}
+            </div>
+            <Pager page={cur} total={pages} onChange={setPage} />
+            {picks.length >= MAX && (
+              <small style={{ color: 'var(--faint)', fontSize: 10.5 }}>
+                {MAX}개까지 고를 수 있습니다 — 바꾸려면 위에서 하나를 빼세요
+              </small>
+            )}
+          </div>
+        </>
+      )}
     </div>
   );
 }
