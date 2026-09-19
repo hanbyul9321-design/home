@@ -238,7 +238,7 @@ export function LatestWidget({ conf }: { conf: WidgetConf }) {
   return (
     <div className="panel widget" style={{ margin: 0 }}>
       <h4>
-        <span>LATEST{cat && <small style={{ marginLeft: 4, fontWeight: 400, color: 'var(--faint)' }}>· {cat}</small>}</span>
+        <span>LATEST{cat && <small style={{ marginLeft: 5, fontWeight: 400, color: 'var(--faint)' }}>&middot;&nbsp;{cat}</small>}</span>
         <span style={{ display: 'flex', gap: 8 }}>
           {isAdmin && <span className="more" onClick={() => setOpen(true)}>설정 ›</span>}
           <span className="more" onClick={() => router.push('/gallery')}>더보기 ›</span>
