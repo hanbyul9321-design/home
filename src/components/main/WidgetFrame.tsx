@@ -5,13 +5,15 @@ import React, { useEffect, useRef, useState } from 'react';
 import { WidgetConf, useMainStore } from '@/lib/mainStore';
 import { ConfirmModal } from '@/components/ui/Modal';
 
-export function WidgetFrame({ conf, mobileOrder, children, className, style, onCtx }: {
+export function WidgetFrame({ conf, mobileOrder, children, className, style, onCtx, onDel }: {
   conf: WidgetConf;
   mobileOrder: number;
   children: React.ReactNode;
   className?: string;
   style?: React.CSSProperties;
   onCtx: (id: string, x: number, y: number) => void;
+  /** 편집모드 우상단 × — 우클릭 메뉴에만 있던 삭제를 눈에 보이게 (v2.0 사용자 요청) */
+  onDel?: (id: string) => void;
 }) {
   const { editOn, gridOn, updateWidget } = useMainStore();
   // 메인은 항상 고정 캔버스 (v1.9 — 반응형 옵션 제거, PC/모바일 두 가지만) — 저장 크기 상시 유지
@@ -194,11 +196,17 @@ export function WidgetFrame({ conf, mobileOrder, children, className, style, onC
         if (!editOn) return;
         const t = e.target as HTMLElement;
         if (!ref.current?.contains(t)) return;
-        if (t.closest('.rs') || t.closest('.rr')) return;
+        if (t.closest('.rs') || t.closest('.rr') || t.closest('.rd')) return;
         e.stopPropagation(); e.preventDefault();
       }}
     >
       {children}
+      {/* 삭제 × — 편집모드에서만, 고정 요소(배너·회원정보창)는 지울 수 없으므로 빼고 (v2.0 사용자 요청) */}
+      {onDel && !conf.fixed && (
+        <span className="rd" data-tip="위젯 삭제"
+          onPointerDown={e => e.stopPropagation()}
+          onClick={e => { e.stopPropagation(); onDel(conf.id); }} />
+      )}
       {/* Shift+드래그 중앙 정렬 — 폭이 안 맞아 5px 치우칠 때 가로를 어느 쪽으로 맞출지 (v1.9 사용자 요청) */}
       <ConfirmModal open={centerAsk !== null}
         title="가운데에 딱 맞추려면 가로 크기를 조정해야 합니다"
