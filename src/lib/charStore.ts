@@ -40,6 +40,9 @@ export interface Character {
   /** 어느 캐릭터 목록 것인지 (v2.0 사용자 요청) — 없으면 기본 목록.
    *  **자관·역극이 캐릭터를 찾을 때는 소속을 보지 않는다** — 목록 화면에서만 갈린다 */
   secId?: string;
+  /** 말머리 (v2.0 사용자 요청) — 한 목록 안에서 캐릭터를 갈라 보기 위한 분류.
+   *  이름·개수는 환경설정 > 게시판 관리에서 정한다. 비어 있으면 「분류 없음」으로 다룬다. */
+  category?: string;
   thumbClass: string;    // 데모 플레이스홀더 클래스
   thumbId?: string;      // 리스트 썸네일 (IndexedDB, 3:4 크롭)
   thumbCrop?: import("@/components/ui/CropEditor").CropValue;

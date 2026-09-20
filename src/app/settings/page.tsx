@@ -16,7 +16,7 @@ import { DiaryPost, DIARY_SEED } from '@/lib/diaryStore';
 import { newId } from '@/lib/postStore';
 import { useCommSettings, badgeStyle, CommBadge, CommSettings } from '@/lib/commStore';
 import {
-  useBoardSettings, boardBadgeStyle, BoardBadge, galleryCatsOf,
+  useBoardSettings, boardBadgeStyle, BoardBadge, galleryCatsOf, charCatsOf,
   useBoards, Board, BoardSkin, BoardPerm, DEFAULT_BOARD_CATS, MAIN_BOARD_ID,
 } from '@/lib/boardStore';
 import { useThreadSettings, ThreadWork, THREAD_SEED, ThreadCat, threadBadgeStyle, threadCats, threadCatsPatch } from '@/lib/threadStore';
@@ -653,6 +653,7 @@ function BoardPane() {
   const {
     st, patchSystem, patchGallery,
     patchGalleryCat, addGalleryCat, removeGalleryCat, setGalleryCats,
+    patchCharCat, addCharCat, removeCharCat, setCharCats,
   } = useBoardSettings();
   const { boards, setBoards, patchBoard } = useBoards();
   const [catBoard, setCatBoard] = useState(MAIN_BOARD_ID);   // 말머리 편집 대상 게시판
@@ -663,6 +664,7 @@ function BoardPane() {
   const [galSecSel, setGalSec] = useState(MAIN_SEC);
   const galSec = galSecs.some(s2 => s2.id === galSecSel) ? galSecSel : MAIN_SEC;
   const galCats = galleryCatsOf(st, galSec);
+  const charCats = charCatsOf(st);    // 캐릭터 말머리 (v2.0)
   const del = useConfirmDelete();
 
   const sel = boards.find(b => b.id === catBoard) ?? boards[0];
@@ -825,6 +827,30 @@ function BoardPane() {
         )} />
       <button className="btn btn-ghost" style={{ marginTop: 8, padding: '7px 14px', fontSize: 11 }}
         onClick={() => addGalleryCat(galSec)}>＋ 말머리 추가</button>
+
+      {/* 캐릭터 말머리 (v2.0 사용자 요청) — 캐릭터 프로필을 분류해 올리고, 목록에서 그 분류로 갈라 본다 */}
+      <h3 style={{ marginTop: 20 }}>캐릭터 말머리</h3>
+      <div className="d">캐릭터 등록·수정에서 고르는 말머리 — 캐릭터 목록 위에 이 분류 탭이 생깁니다</div>
+      <DragList items={charCats} keyOf={c => c.id} onReorder={setCharCats}
+        render={c => (
+          <div className="set-row" style={{ width: '100%' }}>
+            <div className="l" style={{ display: 'flex', gap: 11, alignItems: 'center' }}>
+              <span className="drag-h">⠿</span>
+              <span style={boardBadgeStyle(c)}>{c.label || '말머리'}</span>
+            </div>
+            <div className="cp-group" style={{ justifyContent: 'flex-end' }}>
+              <KInput value={c.label} onChange={e => patchCharCat(c.id, { label: e.target.value })}
+                style={{ width: 100, textAlign: 'right' }} />
+              {colorCells(c, p => patchCharCat(c.id, p))}
+              <span className="fx" data-tip="말머리 삭제"
+                onClick={() => del.ask(`말머리 「${c.label}」를 삭제하시겠습니까?`,
+                  () => removeCharCat(c.id),
+                  '이미 이 말머리로 등록된 캐릭터는 그대로 남습니다.')}>✕</span>
+            </div>
+          </div>
+        )} />
+      <button className="btn btn-ghost" style={{ marginTop: 8, padding: '7px 14px', fontSize: 11 }}
+        onClick={addCharCat}>＋ 말머리 추가</button>
 
       <hr style={{ margin: '24px 0', border: 'none', borderTop: '1.5px solid var(--line)' }} />
       {/* 갤러리·다이어리 등도 여러 개로 (v2.0 사용자 요청) — 목록이 몇 개인지는 여기 한곳에서 */}

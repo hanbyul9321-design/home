@@ -15,6 +15,7 @@ import { useToast } from '@/components/ui/Toast';
 import { EditableDesc, PageTitle } from '@/components/ui/PageText';
 import { useMainStore } from '@/lib/mainStore';
 import { useCardSort, mergeOrder } from '@/lib/cardSort';
+import { useBoardSettings, charCatsOf } from '@/lib/boardStore';
 
 function CharsInner() {
   const router = useRouter();
@@ -28,6 +29,11 @@ function CharsInner() {
   // 저장은 이 목록 자리만 교체 — 걸러진 목록을 그대로 넘겨도 다른 목록이 지워지지 않는다
   const setChars = sectionSetter(charsAll, sec.id, setCharsAll);
   const [q, setQ] = useState('');
+  /* 말머리 탭 (v2.0 사용자 요청) — 한 목록 안에서 분류별로 갈라 본다.
+     쓰는 말머리가 하나도 없으면 탭 줄 자체를 띄우지 않는다(있던 홈의 모습이 바뀌지 않게) */
+  const { st: boardSet } = useBoardSettings();
+  const charCats = charCatsOf(boardSet);
+  const [tab, setTab] = useState('');            // '' = 전체
 
   /* 편집 권한 문서 자가 치유 (v2.0 포크 제보 — 「권한을 줬는데 그 회원의 저장이 거부된다」).
      업데이트 전에 준 권한은 문서에 규칙이 읽는 평평한 목록(editorIds)이 없어, 최신 규칙을
@@ -48,7 +54,17 @@ function CharsInner() {
   const visible = chars
     .filter(c => c.own)
     .filter(c => isAdmin || c.visibility === 'public')
+    .filter(c => !tab || (c.category ?? '') === tab)
     .filter(c => !q || c.name.toLowerCase().includes(q.toLowerCase()) || c.sub.includes(q));
+  /* 탭은 **실제로 쓰이는 분류**로 만든다 — 설정 순서를 먼저 따르고, 설정에 없는 값(말머리 이름을
+     바꾼 뒤 남은 옛 이름 등)은 뒤에 붙인다. 설정에만 있고 아무도 안 쓰는 분류는 빈 탭이 되므로 빼고,
+     반대로 설정에 없다고 빼 버리면 그 캐릭터들만 탭으로 못 찾게 된다 (v2.0 — 이름 변경 시 겪음) */
+  const mine = chars.filter(c => c.own);
+  const usedCats = [
+    ...charCats.map(c => c.label).filter(l => mine.some(x => x.category === l)),
+    ...[...new Set(mine.map(c => c.category).filter((l): l is string => !!l))]
+      .filter(l => !charCats.some(c => c.label === l)),
+  ];
 
   // 편집모드 카드 드래그 정렬 (v1.9)
   const sort = useCardSort(visible, next => setChars(mergeOrder(chars, next)), editOn && isAdmin);
@@ -63,6 +79,16 @@ function CharsInner() {
           {isAdmin && <button className="btn btn-dark" onClick={() => router.push('/chars/new' + secQuery('chars', sec.id))}>＋ ADD CHARACTER</button>}
         </div>
       </div>
+      {usedCats.length > 0 && (
+        <div className="toolrow">
+          <div className="seg">
+            <button className={tab === '' ? 'on' : ''} onClick={() => setTab('')}>전체</button>
+            {usedCats.map(label => (
+              <button key={label} className={tab === label ? 'on' : ''} onClick={() => setTab(label)}>{label}</button>
+            ))}
+          </div>
+        </div>
+      )}
       <div className="g5 chars-grid">
         {visible.map((c, i) => {
           const priv = c.visibility === 'private';

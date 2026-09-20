@@ -31,8 +31,16 @@ export const DEFAULT_GALLERY_CATS: BoardBadge[] = ['합작', '낙서', '커미�
   id: `gcat-${c}`, label: c, bg: '#eef0f2', border: '#d7dae0', fg: '#5d636d',
 }));
 
+/** 캐릭터 말머리 (v2.0 사용자 요청) — 캐릭터 목록을 두 갈래로 나눠 올리기 위한 기본값.
+ *  이름·개수는 환경설정에서 바꾼다 (둘로 시작하지만 늘리거나 줄여도 된다) */
+export const DEFAULT_CHAR_CATS: BoardBadge[] = ['메인', '서브'].map(c => ({
+  id: `ccat-${c}`, label: c, bg: '#eef0f2', border: '#d7dae0', fg: '#5d636d',
+}));
+
 export interface BoardSettings {
   system: BoardBadge[]; cats: BoardBadge[]; gallery: BoardBadge[]; galleryCats: BoardBadge[];
+  /** 캐릭터 말머리 (v2.0 사용자 요청) — 정한 적 없으면 기본값 둘 */
+  charCats?: BoardBadge[];
   /** 갤러리마다 따로 쓰는 말머리 (v2.0 사용자 요청) — 정한 적 없으면 기본 갤러리 것을 그대로.
    *  새로 만들자마자 말머리가 비면 글부터 못 쓴다(감상타래·스케줄러와 같은 규칙). */
   secGalleryCats?: Record<string, BoardBadge[]>;
@@ -42,6 +50,9 @@ const DEFAULTS: BoardSettings = {
   gallery: DEFAULT_GALLERY_BADGES, galleryCats: DEFAULT_GALLERY_CATS,
 };
 const KEY = 'ohome.boardset.v1';
+
+/** 캐릭터 목록에서 쓸 말머리 (v2.0) — 정한 적이 없으면 기본값 */
+export const charCatsOf = (s: BoardSettings): BoardBadge[] => s.charCats ?? DEFAULT_CHAR_CATS;
 
 /** 그 갤러리에서 쓸 말머리 (v2.0) — 따로 정한 적이 없으면 기본 갤러리 것 */
 export const galleryCatsOf = (s: BoardSettings, secId: string): BoardBadge[] =>
@@ -105,9 +116,20 @@ export function useBoardSettings() {
     mutGalleryCats(secId, cs => cs.filter(b => b.id !== id)), [mutGalleryCats]);
   const setGalleryCats = useCallback((secId: string, cats: BoardBadge[]) =>
     mutGalleryCats(secId, () => cats), [mutGalleryCats]);
+  /* 캐릭터 말머리 — 게시판 말머리와 같은 방식 (v2.0 사용자 요청) */
+  const mutCharCats = useCallback((fn: (cats: BoardBadge[]) => BoardBadge[]) =>
+    apply(s => ({ ...s, charCats: fn(charCatsOf(s)) })), [apply]);
+  const patchCharCat = useCallback((id: string, p: Partial<BoardBadge>) =>
+    mutCharCats(cs => cs.map(b => (b.id === id ? { ...b, ...p } : b))), [mutCharCats]);
+  const addCharCat = useCallback(() =>
+    mutCharCats(cs => [...cs, { id: newId(), label: '새 말머리', bg: '#eef0f2', border: '#d7dae0', fg: '#5d636d' }]), [mutCharCats]);
+  const removeCharCat = useCallback((id: string) =>
+    mutCharCats(cs => cs.filter(b => b.id !== id)), [mutCharCats]);
+  const setCharCats = useCallback((cats: BoardBadge[]) => mutCharCats(() => cats), [mutCharCats]);
   return {
     st, loaded, patchSystem, patchCat, addCat, removeCat, setCats, patchGallery,
     patchGalleryCat, addGalleryCat, removeGalleryCat, setGalleryCats,
+    patchCharCat, addCharCat, removeCharCat, setCharCats,
   };
 }
 
