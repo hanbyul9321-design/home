@@ -9,6 +9,7 @@ import { GrantsEditor } from '@/components/chars/GrantsEditor';
 import { newId } from '@/lib/postStore';
 import { putBlob, getBlob, useBlobUrl } from '@/lib/blobStore';
 import { useFonts, deVarFamily } from '@/lib/fontStore';
+import { useBoardSettings, charCatsOf } from '@/lib/boardStore';
 import { KInput, KSelect, KStep, KCheck } from '@/components/ui/Kit';
 import { RichEditor } from '@/components/ui/RichEditor';
 import { ColorField } from '@/components/ui/ColorField';
@@ -52,6 +53,13 @@ export function CharEditForm({ initial, onSave, onCancel, auMode, existingIds }:
   const [color, setColor] = useState(initial?.color ?? '#5d636d');
   const [themeMode, setThemeMode] = useState<'default' | 'custom'>(initial?.themeMode ?? 'default');
   const [visibility, setVisibility] = useState<Visibility>(initial?.visibility ?? 'public');
+  // 말머리 (v2.0 사용자 요청) — 새로 만들 때는 첫 말머리로 시작한다
+  const { st: boardSet } = useBoardSettings();
+  const charCats = charCatsOf(boardSet);
+  const [category, setCategory] = useState(initial?.category ?? '');
+  useEffect(() => {
+    if (!category && !initial && charCats[0]) setCategory(charCats[0].label);
+  }, [charCats, category, initial]);
   const [fontId, setFontId] = useState(initial?.fontId ?? 'serif');
   const [nameSize, setNameSize] = useState(initial?.nameSize ?? 38);   // 상세 큰 이름 크기 (v2.0)
   const [nameBold, setNameBold] = useState(initial?.nameBold ?? true); // 상세 이름 볼드 (v2.0 — 기본 켜짐)
@@ -108,6 +116,7 @@ export function CharEditForm({ initial, onSave, onCancel, auMode, existingIds }:
       tabs,   // 제목이 비어도 유지 — 필터로 사라지던 버그 수정 (v1.9 사용자 지적)
       basicHtml,
       visibility,
+      category,
       fontId,
       nameSize,
       nameBold,
@@ -315,6 +324,14 @@ export function CharEditForm({ initial, onSave, onCancel, auMode, existingIds }:
               <button className={themeMode === 'default' ? 'on' : ''} onClick={() => setThemeMode('default')}>기존 테마 따르기</button>
               <button className={themeMode === 'custom' ? 'on' : ''} onClick={() => setThemeMode('custom')}>캐릭터 테마색</button>
             </div>
+            {/* 말머리 (v2.0 사용자 요청) — 목록에서 이 분류로 갈라 본다. AU 편집은 base 소관이라 숨김 */}
+            {!auMode && charCats.length > 0 && (
+              <>
+                <p className="hint" style={{ margin: '2px 0 0' }}>말머리 — 캐릭터 목록에서 이 분류로 갈라 봅니다</p>
+                <KSelect value={category} onChange={setCategory}
+                  options={[{ value: '', label: '분류 없음' }, ...charCats.map(c => ({ value: c.label, label: c.label }))]} />
+              </>
+            )}
             {/* 공개범위는 base 소관 — AU 편집에선 숨김 (v1.9) */}
             {!auMode && (
               <KSelect value={visibility} onChange={v => setVisibility(v as Visibility)}
