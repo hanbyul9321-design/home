@@ -226,6 +226,17 @@ export async function createFirebaseBackend(cfg: FirebaseCfg): Promise<Backend> 
       const u = auth.currentUser;
       if (!u) return { ok: false, error: '로그인이 필요합니다.' };
       try {
+        /* 비밀번호 변경 (v2.0) — Firebase는 오래 로그인해 둔 계정의 비밀번호 변경을 거부하므로
+           현재 비밀번호로 재인증한 뒤 바꾼다 */
+        if (patch.newPassword) {
+          if (!patch.currentPassword) return { ok: false, error: '현재 비밀번호를 입력해 주세요.' };
+          if (!u.email) return { ok: false, error: '이 계정은 비밀번호를 바꿀 수 없습니다.' };
+          try {
+            await authMod.reauthenticateWithCredential(
+              u, authMod.EmailAuthProvider.credential(u.email, patch.currentPassword));
+          } catch { return { ok: false, error: '현재 비밀번호가 올바르지 않습니다.' }; }
+          await authMod.updatePassword(u, patch.newPassword);
+        }
         const row: Record<string, unknown> = {};
         if (patch.nickname !== undefined) row.nickname = patch.nickname;
         if (patch.avatarUrl !== undefined) row.avatarUrl = patch.avatarUrl ?? null;
