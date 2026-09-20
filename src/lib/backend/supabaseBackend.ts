@@ -106,15 +106,28 @@ export async function createSupabaseBackend(
       return error ? { ok: false, error: error.message } : { ok: true };
     },
 
+    /* 바뀐 칸만 고친다 — **upsert를 쓰면 안 된다** (v2.0 사용자 제보 — 프로필 사진만 바꾸면
+       「null value in column "nickname" … violates not-null constraint」).
+       upsert는 행이 이미 있어도 INSERT 경로를 거치는데, 넘기지 않은 nickname이 그 단계에서 NULL로
+       검사돼 not-null에 걸린다. 그래서 UPDATE를 먼저 하고, 행이 없을 때만 INSERT 한다
+       (가입 트리거 이전 계정처럼 profiles 행이 없는 경우 — 그때는 nickname을 채워 넣는다). */
     async updateProfile(patch) {
       const { data } = await sb.auth.getUser();
       if (!data.user) return { ok: false, error: '로그인이 필요합니다.' };
-      const row: Record<string, unknown> = { id: data.user.id };
+      const row: Record<string, unknown> = {};
       if (patch.nickname !== undefined) row.nickname = patch.nickname;
       if (patch.avatarUrl !== undefined) row.avatar_url = patch.avatarUrl;
       if (patch.avatarColor !== undefined) row.avatar_color = patch.avatarColor;
-      const { error } = await sb.from('profiles').upsert(row, { onConflict: 'id' });
-      return error ? { ok: false, error: error.message } : { ok: true };
+      const { data: hit, error } = await sb.from('profiles')
+        .update(row).eq('id', data.user.id).select('id');
+      if (error) return { ok: false, error: error.message };
+      if (hit && hit.length) return { ok: true };
+      const nickname = patch.nickname
+        ?? (data.user.user_metadata?.nickname as string | undefined)
+        ?? data.user.email?.split('@')[0] ?? 'user';
+      const { error: insErr } = await sb.from('profiles')
+        .insert({ ...row, id: data.user.id, nickname });
+      return insErr ? { ok: false, error: insErr.message } : { ok: true };
     },
 
     // Supabase는 스키마의 트리거가 첫 가입자를 관리자로 만들어 준다 — 추가 작업 없음
