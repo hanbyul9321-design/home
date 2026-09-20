@@ -118,6 +118,9 @@ export async function createSupabaseBackend(
       if (patch.nickname !== undefined) row.nickname = patch.nickname;
       if (patch.avatarUrl !== undefined) row.avatar_url = patch.avatarUrl;
       if (patch.avatarColor !== undefined) row.avatar_color = patch.avatarColor;
+      // 고칠 칸이 하나도 없으면 DB를 건드리지 않는다 — 비밀번호만 바꿀 때 이리로 온다(4.x 마이페이지).
+      // 빈 UPDATE는 서버가 거부하므로, 예전 upsert처럼 id만 보내 not-null에 걸리는 일도 없게.
+      if (Object.keys(row).length === 0) return { ok: true };
       const { data: hit, error } = await sb.from('profiles')
         .update(row).eq('id', data.user.id).select('id');
       if (error) return { ok: false, error: error.message };
