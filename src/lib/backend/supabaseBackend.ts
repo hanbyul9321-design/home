@@ -114,6 +114,18 @@ export async function createSupabaseBackend(
     async updateProfile(patch) {
       const { data } = await sb.auth.getUser();
       if (!data.user) return { ok: false, error: '로그인이 필요합니다.' };
+      /* 비밀번호 변경 (v2.0 사용자 제보 — 「바꿨다」고 나오는데 옛 비밀번호로 계속 로그인됨).
+         현재 비밀번호를 한 번 확인하고 바꾼다 — 자리를 비운 사이 남이 바꾸지 못하게. */
+      if (patch.newPassword) {
+        if (!patch.currentPassword) return { ok: false, error: '현재 비밀번호를 입력해 주세요.' };
+        if (!data.user.email) return { ok: false, error: '이 계정은 비밀번호를 바꿀 수 없습니다.' };
+        const { error: pwErr } = await sb.auth.signInWithPassword({
+          email: data.user.email, password: patch.currentPassword,
+        });
+        if (pwErr) return { ok: false, error: '현재 비밀번호가 올바르지 않습니다.' };
+        const { error: upErr } = await sb.auth.updateUser({ password: patch.newPassword });
+        if (upErr) return { ok: false, error: upErr.message };
+      }
       const row: Record<string, unknown> = {};
       if (patch.nickname !== undefined) row.nickname = patch.nickname;
       if (patch.avatarUrl !== undefined) row.avatar_url = patch.avatarUrl;
