@@ -222,6 +222,15 @@ export async function createFirebaseBackend(cfg: FirebaseCfg): Promise<Backend> 
       } catch (e) { return { ok: false, error: humanError(e) }; }
     },
 
+    async setPassword(newPassword) {
+      const u = auth.currentUser;
+      if (!u) return { ok: false, error: '재설정 링크가 만료되었습니다 — 메일을 다시 받아 주세요.' };
+      try {
+        await authMod.updatePassword(u, newPassword);
+        return { ok: true };
+      } catch (e) { return { ok: false, error: humanError(e) }; }
+    },
+
     async updateProfile(patch) {
       const u = auth.currentUser;
       if (!u) return { ok: false, error: '로그인이 필요합니다.' };

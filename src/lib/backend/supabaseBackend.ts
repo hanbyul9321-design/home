@@ -102,7 +102,17 @@ export async function createSupabaseBackend(
     async signOut() { await sb.auth.signOut(); },
 
     async resetPassword(email) {
-      const { error } = await sb.auth.resetPasswordForEmail(email);
+      // 메일의 링크가 이 주소로 돌아온다 — 새 비밀번호를 입력할 화면 (v2.0).
+      // 이 주소는 Supabase > Authentication > URL Configuration의 Redirect URLs에 있어야 한다.
+      const redirectTo = typeof window !== 'undefined' ? `${window.location.origin}/reset` : undefined;
+      const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo });
+      return error ? { ok: false, error: error.message } : { ok: true };
+    },
+
+    async setPassword(newPassword) {
+      const { data } = await sb.auth.getUser();
+      if (!data.user) return { ok: false, error: '재설정 링크가 만료되었습니다 — 메일을 다시 받아 주세요.' };
+      const { error } = await sb.auth.updateUser({ password: newPassword });
       return error ? { ok: false, error: error.message } : { ok: true };
     },
 
