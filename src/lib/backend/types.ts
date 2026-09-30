@@ -51,6 +51,9 @@ export interface Backend {
   signUp(id: string, password: string, nickname: string): Promise<{ ok: boolean; error?: string }>;
   signOut(): Promise<void>;
   resetPassword(email: string): Promise<{ ok: boolean; error?: string }>;
+  /** 재설정 링크로 들어온 상태에서 새 비밀번호 저장 (v2.0) — 현재 비밀번호를 모르니 묻지 않는다.
+   *  메일의 링크가 만든 임시 세션이 신원을 보증한다. 그 세션이 없으면 실패해야 한다. */
+  setPassword(newPassword: string): Promise<{ ok: boolean; error?: string }>;
   /** 내 정보 수정 — 프로필 칸과 비밀번호를 함께 받는다 (v2.0 사용자 제보).
    *  비밀번호 칸이 빠져 있어서 마이페이지의 「비밀번호 변경」이 값을 버리고도 성공한 것처럼 보였다. */
   updateProfile(patch: {

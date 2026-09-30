@@ -26,6 +26,8 @@ interface AuthCtx {
   signup: (id: string, password: string, nickname: string, inviteCode: string, email?: string) => Promise<Result>;
   findId: (email: string) => Promise<Result & { foundId?: string }>;
   resetPassword: (email: string) => Promise<Result & { tempPassword?: string }>;
+  /** 재설정 링크로 들어와 새 비밀번호를 정할 때 (v2.0) — 현재 비밀번호를 묻지 않는다 */
+  setPassword: (newPassword: string) => Promise<Result>;
   logout: () => Promise<void>;
   updateProfile: (patch: { nickname?: string; avatarUrl?: string | null; avatarColor?: string | null; currentPassword?: string; newPassword?: string }) => Promise<Result>;
   /** 서버(DB) 연결 없이 브라우저 계정으로 도는 중인지 — 개발·오프라인 */
@@ -171,6 +173,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return { ok: true, tempPassword: temp };
   }, [server, be]);
 
+  /* 재설정 링크로 들어온 상태에서 새 비밀번호 저장 (v2.0 사용자 제보 — 비밀번호를 잊으면
+     복구할 길이 없었다: 메일은 보내는데 새 비밀번호를 넣을 화면이 아예 없었다).
+     로컬 모드에는 메일이 없으니 지금 로그인한 계정의 비밀번호를 바꾼다. */
+  const setPassword = useCallback(async (newPassword: string): Promise<Result> => {
+    if (!newPassword) return { ok: false, error: '새 비밀번호를 입력해 주세요.' };
+    if (server && be) return be.setPassword(newPassword);
+    if (!user) return { ok: false, error: '로그인이 필요합니다.' };
+    const reg = mockRegistry();
+    const cur = reg[user.id];
+    if (!cur) return { ok: false, error: '계정을 찾을 수 없습니다.' };
+    reg[user.id] = { ...cur, password: newPassword };
+    try { localStorage.setItem(MOCK_REG_KEY, JSON.stringify(reg)); } catch { /* 무시 */ }
+    return { ok: true };
+  }, [server, be, user]);
+
   const updateProfile = useCallback(async (patch: {
     nickname?: string; avatarUrl?: string | null; avatarColor?: string | null; currentPassword?: string; newPassword?: string;
   }): Promise<Result> => {
@@ -223,7 +240,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   return (
     <Ctx.Provider value={{
       user, isAdmin: user?.role === 'admin', ready,
-      login, signup, findId, resetPassword, logout, updateProfile, mock: !server,
+      login, signup, findId, resetPassword, setPassword, logout, updateProfile, mock: !server,
     }}>
       {children}
     </Ctx.Provider>
